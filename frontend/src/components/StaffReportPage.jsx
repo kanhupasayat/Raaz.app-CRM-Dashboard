@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useCallData } from "../CallContext";
+import SkeletonTable from "./SkeletonTable";
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -222,7 +223,7 @@ function StaffReportPage() {
 
         {/* Results */}
         {loading ? (
-          <div className="loading">Loading...</div>
+          <SkeletonTable columns={9} rows={8} />
         ) : searched ? (
           data.length > 0 ? (
             <>

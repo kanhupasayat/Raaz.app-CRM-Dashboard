@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useCallData } from "../CallContext";
+import SkeletonTable from "./SkeletonTable";
 
 function formatTime(dateStr) {
   if (!dateStr) return "-";
@@ -121,14 +122,6 @@ function AssessmentPage() {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="app">
-        <div className="loading">Loading Assessment Data...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="app">
       <header className="app-header">
@@ -181,7 +174,9 @@ function AssessmentPage() {
           </button>
         </div>
 
-        {list.length > 0 ? (
+        {loading ? (
+          <SkeletonTable columns={9} rows={8} />
+        ) : list.length > 0 ? (
           <table className="data-table team-table">
             <thead>
               <tr>

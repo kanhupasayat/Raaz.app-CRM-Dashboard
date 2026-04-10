@@ -6,6 +6,7 @@ import OnboardingPage from "./components/OnboardingPage";
 import AssessmentPage from "./components/AssessmentPage";
 import StaffReportPage from "./components/StaffReportPage";
 import CsvCallReportPage from "./components/CsvCallReportPage";
+import SkeletonTable, { SkeletonStatsCards } from "./components/SkeletonTable";
 import { CallProvider, useCallData } from "./CallContext";
 import "./App.css";
 
@@ -275,7 +276,10 @@ function AppContent() {
                 </div>
               )}
               {data.loading ? (
-                <div className="loading">Loading...</div>
+                <div className="skeleton-page-wrapper">
+                  <SkeletonStatsCards count={4} />
+                  <SkeletonTable columns={7} rows={6} />
+                </div>
               ) : (
                 <Dashboard
                   data={{ ...data, calledNumbers, callDetails, totalCalls }}
@@ -300,7 +304,9 @@ function AppContent() {
           element={
             data.loading ? (
               <div className="app">
-                <div className="loading">Loading...</div>
+                <div className="skeleton-page-wrapper">
+                  <SkeletonTable columns={9} rows={10} />
+                </div>
               </div>
             ) : (
               <TeamPage

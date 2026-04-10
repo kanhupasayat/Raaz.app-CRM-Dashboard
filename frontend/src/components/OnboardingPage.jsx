@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useCallData } from "../CallContext";
+import SkeletonTable from "./SkeletonTable";
 
 function normPhone(phone) {
   return (phone || "").replace(/\D/g, "").slice(-10);
@@ -179,14 +180,6 @@ function OnboardingPage() {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="app">
-        <div className="loading">Loading Onboarding Data...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="app">
       <header className="app-header">
@@ -321,7 +314,9 @@ function OnboardingPage() {
         </div>
 
         {/* Table */}
-        {list.length > 0 ? (
+        {loading ? (
+          <SkeletonTable columns={11} rows={8} />
+        ) : list.length > 0 ? (
           <table className="data-table team-table">
             <thead>
               <tr>
