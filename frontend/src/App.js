@@ -33,6 +33,8 @@ function loadSavedDate() {
 
 function NavBar() {
   const location = useLocation();
+  // Hide nav bar on /team page — team members shouldn't see other page links
+  if (location.pathname === "/team") return null;
   const links = [
     { path: "/", label: "Dashboard" },
     { path: "/team", label: "Team" },
