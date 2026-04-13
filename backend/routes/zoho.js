@@ -436,4 +436,127 @@ router.get("/staff-deliveries", async (req, res) => {
   }
 });
 
+// Deal lookup by phone number — returns deals + Followup Dates fields
+router.get("/deals-by-phone", async (req, res) => {
+  try {
+    const { phone } = req.query;
+    if (!phone) {
+      return res.status(400).json({ error: "phone query param required" });
+    }
+
+    const token = await getAccessToken();
+    let apiCalls = 0;
+
+    // Build phone variants: raw, with 91, without 91
+    const raw = phone.replace(/\D/g, "");
+    const variants = [];
+    if (raw.startsWith("91") && raw.length === 12) {
+      variants.push(raw, raw.slice(2));
+    } else if (raw.length === 10) {
+      variants.push(raw, "91" + raw);
+    } else {
+      variants.push(raw);
+    }
+
+    let deals = [];
+    const seen = new Set();
+
+    const addDeals = (found) => {
+      for (const d of found) {
+        if (!seen.has(d.id)) {
+          seen.add(d.id);
+          deals.push(d);
+        }
+      }
+    };
+
+    const safeSearch = async (module, params) => {
+      try {
+        countCall("zoho");
+        apiCalls++;
+        const response = await axios.get(
+          `${process.env.ZOHO_API_DOMAIN}/crm/v2/${module}/search`,
+          {
+            headers: { Authorization: `Zoho-oauthtoken ${token}` },
+            params: { ...params, per_page: 200 },
+          }
+        );
+        return response.data?.data || [];
+      } catch (err) {
+        if (err.response?.status === 404 || err.response?.status === 204) {
+          return [];
+        }
+        throw err;
+      }
+    };
+
+    // Step 1: Search Deals directly by phone (starts_with)
+    for (const variant of variants) {
+      if (deals.length > 0) break;
+      const found = await safeSearch("Deals", { criteria: `(Phone:starts_with:${variant})` });
+      addDeals(found);
+    }
+
+    // Step 2: If no deals found, search via Contacts → get their deals
+    if (deals.length === 0) {
+      let contactIds = [];
+      for (const variant of variants) {
+        if (contactIds.length > 0) break;
+        // Try phone field on Contacts
+        const contacts = await safeSearch("Contacts", { phone: variant });
+        contactIds = contacts.map((c) => c.id);
+      }
+
+      // For each contact, fetch related deals
+      for (const contactId of contactIds) {
+        try {
+          countCall("zoho");
+          apiCalls++;
+          const response = await axios.get(
+            `${process.env.ZOHO_API_DOMAIN}/crm/v2/Contacts/${contactId}/Deals`,
+            {
+              headers: { Authorization: `Zoho-oauthtoken ${token}` },
+              params: { per_page: 200 },
+            }
+          );
+          addDeals(response.data?.data || []);
+        } catch (err) {
+          if (err.response?.status !== 404 && err.response?.status !== 204) {
+            throw err;
+          }
+        }
+      }
+    }
+
+    // Step 3: If still nothing, try word search on Deals
+    if (deals.length === 0) {
+      for (const variant of variants) {
+        if (deals.length > 0) break;
+        const found = await safeSearch("Deals", { word: variant });
+        addDeals(found);
+      }
+    }
+
+    res.json({
+      phone,
+      totalDeals: deals.length,
+      apiCalls,
+      deals: deals.map((d) => ({
+        id: d.id,
+        Deal_Name: d.Deal_Name || "nil",
+        Stage: d.Stage || "nil",
+        Phone: d.Phone || "nil",
+        Contact_Name: d.Contact_Name?.name || d.Contact_Name || "nil",
+        Onboarding_Call_Done: d.Onboarding_Call_Done || "nil",
+        Onboarding_Date: d.Onboarding_Date || "nil",
+        Medicine_Start_date: d.Medicine_Start_date || "nil",
+        Followup_Date: d.Followup_Date || "nil",
+      })),
+    });
+  } catch (error) {
+    console.error("Deals by phone error:", error.message);
+    res.status(500).json({ error: error.message, phone, totalDeals: 0, apiCalls: 0, deals: [] });
+  }
+});
+
 module.exports = router;

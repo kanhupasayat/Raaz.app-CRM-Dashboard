@@ -5,8 +5,7 @@ import TeamPage from "./components/TeamPage";
 import OnboardingPage from "./components/OnboardingPage";
 import AssessmentPage from "./components/AssessmentPage";
 import StaffReportPage from "./components/StaffReportPage";
-import CsvCallReportPage from "./components/CsvCallReportPage";
-import SkeletonTable, { SkeletonStatsCards } from "./components/SkeletonTable";
+import PhoneLookupPage from "./components/PhoneLookupPage";
 import { CallProvider, useCallData } from "./CallContext";
 import "./App.css";
 
@@ -33,15 +32,13 @@ function loadSavedDate() {
 
 function NavBar() {
   const location = useLocation();
-  // Hide nav bar on /team page — team members shouldn't see other page links
-  if (location.pathname === "/team") return null;
   const links = [
     { path: "/", label: "Dashboard" },
     { path: "/team", label: "Team" },
     { path: "/onboarding", label: "Onboarding" },
     { path: "/assessment", label: "Assessment" },
     { path: "/staff-report", label: "Staff Report" },
-    { path: "/csv-report", label: "CSV Report" },
+    { path: "/phone-lookup", label: "Phone Lookup" },
   ];
   return (
     <nav className="nav-bar">
@@ -128,8 +125,8 @@ function AppContent() {
           fetch(`${process.env.REACT_APP_API_URL}/api/proship/deliveries`),
         ]);
 
-      // Call data fetch through shared context (parallel — don't block main data)
-      fetchCalls().catch((err) => console.error("Call data fetch error:", err));
+      // Call data fetch through shared context (merge hoga automatically)
+      await fetchCalls();
 
       const users = await usersRes.json();
       const leads = await leadsRes.json();
@@ -175,6 +172,7 @@ function AppContent() {
       setError("Leads fetch failed!");
     }
     setRefreshingLeads(false);
+
   };
 
   const fetchContactsData = async () => {
@@ -278,10 +276,7 @@ function AppContent() {
                 </div>
               )}
               {data.loading ? (
-                <div className="skeleton-page-wrapper">
-                  <SkeletonStatsCards count={4} />
-                  <SkeletonTable columns={7} rows={6} />
-                </div>
+                <div className="loading">Loading...</div>
               ) : (
                 <Dashboard
                   data={{ ...data, calledNumbers, callDetails, totalCalls }}
@@ -306,9 +301,7 @@ function AppContent() {
           element={
             data.loading ? (
               <div className="app">
-                <div className="skeleton-page-wrapper">
-                  <SkeletonTable columns={9} rows={10} />
-                </div>
+                <div className="loading">Loading...</div>
               </div>
             ) : (
               <TeamPage
@@ -325,8 +318,7 @@ function AppContent() {
         <Route path="/assessment" element={<AssessmentPage />} />
         {/* Staff Report Page */}
         <Route path="/staff-report" element={<StaffReportPage />} />
-        {/* CSV Call Report Page */}
-        <Route path="/csv-report" element={<CsvCallReportPage />} />
+        <Route path="/phone-lookup" element={<PhoneLookupPage />} />
       </Routes>
     </BrowserRouter>
   );
