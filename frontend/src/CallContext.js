@@ -6,9 +6,23 @@ export function useCallData() {
   return useContext(CallContext);
 }
 
+// localStorage se initial state load — refresh pe blank na dikhe
+function loadFromStorage(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function CallProvider({ children }) {
-  const [calledNumbers, setCalledNumbers] = useState([]);
-  const [callDetails, setCallDetails] = useState({});
+  const [calledNumbers, setCalledNumbers] = useState(() =>
+    loadFromStorage("calledNumbers", [])
+  );
+  const [callDetails, setCallDetails] = useState(() =>
+    loadFromStorage("callDetails", {})
+  );
   const [totalCalls, setTotalCalls] = useState(0);
   const [loadingCalls, setLoadingCalls] = useState(false);
 

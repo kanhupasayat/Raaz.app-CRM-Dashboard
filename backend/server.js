@@ -133,13 +133,27 @@ app.get("/api/tatatele/calls", async (req, res) => {
     }
 
     // Build call details map: phone (last 10 digits) → latest call info
+    // Records are latest-first, so the first record we see per number is the most recent.
+    // Only overwrite if we haven't stored an answered call yet AND the new one is answered
+    // (upgrades missed/failed → answered, but never replaces a newer answered with an older one).
     const callDetailsMap = {};
     todayCalls.forEach((call) => {
       const num = (call.client_number || "").replace(/\D/g, "").slice(-10);
       if (num.length !== 10) return;
 
-      // Keep latest call per number, or update if this one is answered
-      if (!callDetailsMap[num] || call.status === "answered") {
+      const existing = callDetailsMap[num];
+      const isAnswered = call.status === "answered";
+
+      if (!existing) {
+        callDetailsMap[num] = {
+          agentName: call.agent_name || "",
+          status: call.status || "",
+          direction: call.direction || "",
+          duration: call.call_duration || 0,
+          answeredSeconds: call.answered_seconds || 0,
+          time: call.time || "",
+        };
+      } else if (existing.status !== "answered" && isAnswered) {
         callDetailsMap[num] = {
           agentName: call.agent_name || "",
           status: call.status || "",
