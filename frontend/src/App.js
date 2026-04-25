@@ -74,6 +74,7 @@ function AppContent() {
 
   useEffect(() => {
     fetchAllData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Save excluded members to localStorage whenever it changes
