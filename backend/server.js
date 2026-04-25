@@ -144,6 +144,8 @@ app.get("/api/tatatele/calls", async (req, res) => {
       const existing = callDetailsMap[num];
       const isAnswered = call.status === "answered";
 
+      const recordingUrl = call.recording_url || call.recording || call.audio_url || "";
+
       if (!existing) {
         callDetailsMap[num] = {
           agentName: call.agent_name || "",
@@ -152,6 +154,7 @@ app.get("/api/tatatele/calls", async (req, res) => {
           duration: call.call_duration || 0,
           answeredSeconds: call.answered_seconds || 0,
           time: call.time || "",
+          recordingUrl,
         };
       } else if (existing.status !== "answered" && isAnswered) {
         callDetailsMap[num] = {
@@ -161,6 +164,7 @@ app.get("/api/tatatele/calls", async (req, res) => {
           duration: call.call_duration || 0,
           answeredSeconds: call.answered_seconds || 0,
           time: call.time || "",
+          recordingUrl,
         };
       }
     });

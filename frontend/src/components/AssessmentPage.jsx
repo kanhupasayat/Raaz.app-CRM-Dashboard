@@ -137,6 +137,7 @@ function AssessmentPage() {
       callStatus: callInfo?.status || "",
       duration: callInfo?.duration || 0,
       answeredSeconds: callInfo?.answeredSeconds || 0,
+      recordingUrl: callInfo?.recordingUrl || "",
     };
   });
 
@@ -236,7 +237,7 @@ function AssessmentPage() {
         </div>
 
         {loading ? (
-          <SkeletonTable columns={9} rows={8} />
+          <SkeletonTable columns={10} rows={8} />
         ) : list.length > 0 ? (
           <table className="data-table team-table">
             <thead>
@@ -250,6 +251,7 @@ function AssessmentPage() {
                 <th>Agent</th>
                 <th>Duration</th>
                 <th>Result</th>
+                <th>Recording</th>
               </tr>
             </thead>
             <tbody>
@@ -300,6 +302,18 @@ function AssessmentPage() {
                       </span>
                     ) : (
                       "-"
+                    )}
+                  </td>
+                  <td>
+                    {d.recordingUrl ? (
+                      <audio
+                        controls
+                        preload="none"
+                        src={d.recordingUrl}
+                        style={{ height: 32, maxWidth: 220 }}
+                      />
+                    ) : (
+                      <span style={{ color: "#999" }}>-</span>
                     )}
                   </td>
                 </tr>
