@@ -48,12 +48,32 @@ function getCallStatusLabel(status) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
+// Today's date in IST as YYYY-MM-DD
+function getTodayIST() {
+  const now = new Date();
+  const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+  return ist.toISOString().split("T")[0];
+}
+
+function formatDateLabel(d) {
+  if (!d) return "";
+  const date = new Date(d + "T00:00:00");
+  if (isNaN(date)) return d;
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 // Module-level cache — persists across page navigations
-let pageCache = null;
+let pageCache = null; // { startDate, endDate, data }
 
 function AssessmentPage() {
   const { calledNumbers, callDetails, fetchCalls } = useCallData();
-  const [data, setData] = useState(pageCache || []);
+  const today = getTodayIST();
+  const [startDate, setStartDate] = useState(pageCache?.startDate || today);
+  const [endDate, setEndDate] = useState(pageCache?.endDate || today);
+  const [appliedRange, setAppliedRange] = useState(
+    pageCache ? { startDate: pageCache.startDate, endDate: pageCache.endDate } : { startDate: today, endDate: today }
+  );
+  const [data, setData] = useState(pageCache?.data || []);
   const [loading, setLoading] = useState(!pageCache);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -61,21 +81,29 @@ function AssessmentPage() {
   const [copiedIndex, setCopiedIndex] = useState(null);
 
   useEffect(() => {
-    fetchData();
+    fetchData(appliedRange.startDate, appliedRange.endDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (sd, ed) => {
+    if (!sd || !ed) {
+      setError("From aur To date dono select karo.");
+      return;
+    }
+    if (sd > ed) {
+      setError("From date To date se badi nahi ho sakti.");
+      return;
+    }
     setRefreshing(true);
     setError(null);
     try {
-      const [assessRes] = await Promise.all([
-        fetch(`${process.env.REACT_APP_API_URL}/api/zoho/assessment-contacts`),
-        fetchCalls(),
-      ]);
+      const url = `${process.env.REACT_APP_API_URL}/api/zoho/assessment-contacts?startDate=${sd}&endDate=${ed}`;
+      const [assessRes] = await Promise.all([fetch(url), fetchCalls()]);
       const result = await assessRes.json();
       const newData = result.data || [];
       setData(newData);
-      pageCache = newData;
+      setAppliedRange({ startDate: sd, endDate: ed });
+      pageCache = { startDate: sd, endDate: ed, data: newData };
     } catch (err) {
       console.error("Assessment fetch error:", err);
       setError("Data fetch failed! Server check karo.");
@@ -83,6 +111,9 @@ function AssessmentPage() {
     setLoading(false);
     setRefreshing(false);
   };
+
+  const handleApply = () => fetchData(startDate, endDate);
+  const handleRefresh = () => fetchData(appliedRange.startDate, appliedRange.endDate);
 
   const copyPhone = (phone, index) => {
     const cleaned = phone.replace(/\D/g, "");
@@ -128,12 +159,9 @@ function AssessmentPage() {
         <div className="header-left">
           <h1>Assessment Contacts</h1>
           <span className="header-date">
-            {new Date().toLocaleDateString("en-IN", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
+            {appliedRange.startDate === appliedRange.endDate
+              ? formatDateLabel(appliedRange.startDate)
+              : `${formatDateLabel(appliedRange.startDate)} → ${formatDateLabel(appliedRange.endDate)}`}
           </span>
         </div>
         <div className="header-stats">
@@ -157,7 +185,38 @@ function AssessmentPage() {
           Filters: Appointment = Today | Tag = Assessment Completed | Last Delivery Date = Empty | Latest Assessment Time = Not Empty | Latest Payment Date = Empty
         </div>
 
-        <div className="team-filters">
+        <div className="team-filters" style={{ flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>From Date</label>
+            <input
+              type="date"
+              value={startDate}
+              max={endDate || undefined}
+              onChange={(e) => setStartDate(e.target.value)}
+              style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid #ddd", fontSize: 14 }}
+            />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>To Date</label>
+            <input
+              type="date"
+              value={endDate}
+              min={startDate || undefined}
+              onChange={(e) => setEndDate(e.target.value)}
+              style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid #ddd", fontSize: 14 }}
+            />
+          </div>
+
+          <button
+            className="section-refresh-btn leads"
+            onClick={handleApply}
+            disabled={refreshing}
+            style={{ height: 38 }}
+          >
+            {refreshing ? "Loading..." : "Apply"}
+          </button>
+
           <input
             type="text"
             className="team-search"
@@ -165,10 +224,12 @@ function AssessmentPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+
           <button
             className="section-refresh-btn leads"
-            onClick={fetchData}
+            onClick={handleRefresh}
             disabled={refreshing}
+            style={{ height: 38 }}
           >
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>

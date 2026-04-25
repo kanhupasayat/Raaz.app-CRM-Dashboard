@@ -278,14 +278,18 @@ router.get("/followups", async (req, res) => {
   }
 });
 
-// Assessment Contacts — filtered contacts for assessment page (cached 2 min)
+// Assessment Contacts — filtered contacts for assessment page (cached 2 min per range)
 router.get("/assessment-contacts", async (req, res) => {
   try {
-    const cached = getCached("assessment", CACHE_TTL);
+    const today = getTodayIST();
+    const startDate = (req.query.startDate || today).slice(0, 10);
+    const endDate = (req.query.endDate || today).slice(0, 10);
+
+    const cacheKey = `assessment_${startDate}_${endDate}`;
+    const cached = getCached(cacheKey, CACHE_TTL);
     if (cached) return res.json(cached);
 
     const token = await getAccessToken();
-    const today = getTodayIST();
 
     let allData = [];
     let page = 1;
@@ -310,7 +314,9 @@ router.get("/assessment-contacts", async (req, res) => {
       const records = response.data?.data || [];
       for (const c of records) {
         const appt = c.Appointment_Schedule || "";
-        if (appt.startsWith(today)) {
+        const apptDate = appt.slice(0, 10);
+
+        if (apptDate >= startDate && apptDate <= endDate) {
           // Filter: Tag = "Assessment Completed", Last_Delivery_Date empty, Latest_Assessment_Time not empty, Latest_Payment_Date empty
           const tags = c.Tag || [];
           const hasAssessmentTag = Array.isArray(tags) && tags.some((t) => t.name === "Assessment Completed");
@@ -327,7 +333,8 @@ router.get("/assessment-contacts", async (req, res) => {
               latestAssessmentTime: c.Latest_Assessment_Time || "",
             });
           }
-        } else if (appt && appt < today) {
+        } else if (appt && apptDate < startDate) {
+          // Records sorted desc — anything older than startDate means we're done
           hasMore = false;
           break;
         }
@@ -343,8 +350,8 @@ router.get("/assessment-contacts", async (req, res) => {
     // Sort by appointment time
     allData.sort((a, b) => (a.appointment || "").localeCompare(b.appointment || ""));
 
-    const result = { count: allData.length, data: allData };
-    setCache("assessment", result);
+    const result = { count: allData.length, data: allData, startDate, endDate };
+    setCache(cacheKey, result);
     res.json(result);
   } catch (error) {
     console.error("Assessment contacts error:", error.message);
