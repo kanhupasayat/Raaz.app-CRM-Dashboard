@@ -78,6 +78,7 @@ function AssessmentPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
+  const [durationFilter, setDurationFilter] = useState("all");
   const [copiedIndex, setCopiedIndex] = useState(null);
 
   useEffect(() => {
@@ -154,6 +155,23 @@ function AssessmentPage() {
     );
   }
 
+  // Duration filter (uses answered seconds, falls back to total duration)
+  if (durationFilter !== "all") {
+    list = list.filter((d) => {
+      if (durationFilter === "notCalled") return !d.called;
+      if (!d.called) return false;
+      const sec = d.answeredSeconds || d.duration || 0;
+      switch (durationFilter) {
+        case "lt30": return sec > 0 && sec < 30;
+        case "30to60": return sec >= 30 && sec < 60;
+        case "1to3": return sec >= 60 && sec < 180;
+        case "3to5": return sec >= 180 && sec < 300;
+        case "gt5": return sec >= 300;
+        default: return true;
+      }
+    });
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -217,6 +235,23 @@ function AssessmentPage() {
           >
             {refreshing ? "Loading..." : "Apply"}
           </button>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>Duration</label>
+            <select
+              value={durationFilter}
+              onChange={(e) => setDurationFilter(e.target.value)}
+              style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid #ddd", fontSize: 14, background: "#fff", height: 38 }}
+            >
+              <option value="all">All</option>
+              <option value="notCalled">Not Called</option>
+              <option value="lt30">Less than 30 sec</option>
+              <option value="30to60">30 sec – 1 min</option>
+              <option value="1to3">1 – 3 min</option>
+              <option value="3to5">3 – 5 min</option>
+              <option value="gt5">5+ min</option>
+            </select>
+          </div>
 
           <input
             type="text"
@@ -321,7 +356,11 @@ function AssessmentPage() {
             </tbody>
           </table>
         ) : (
-          <div className="no-data">No assessment contacts found for today</div>
+          <div className="no-data">
+            {enriched.length > 0
+              ? "No contacts match the current filters"
+              : "No assessment contacts found for selected date range"}
+          </div>
         )}
       </div>
     </div>
